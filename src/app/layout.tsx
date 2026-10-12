@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { Sora, DM_Sans, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { GoogleAnalytics, GoogleTagManager } from '@next/third-parties/google';
 import { Navbar } from '@/components/organisms/Navbar';
+import { Footer } from '@/components/organisms/Footer';
 import { QueryProvider } from '@/providers/QueryProvider';
 import { Toaster } from '@/components/atoms/Toaster';
+import { GlobalLoginModal } from '@/features/auth/containers/GlobalLoginModal';
 
 const sora = Sora({
   subsets: ['latin'],
@@ -30,10 +33,17 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL!),
   title: {
     template: '%s | pana',
-    default: 'pana',
+    default: 'pana - Lasallian App Directory by the DLSU Community',
   },
   description:
-    'Discover apps built by LSCS — La Salle Computer Society, the tech org of De La Salle University.',
+    'Discover apps built by the La Sallian community. Managed by LSCS, the premier tech organization of De La Salle University',
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.ico' },
+    ],
+  },
   openGraph: {
     siteName: 'pana',
     type: 'website',
@@ -53,13 +63,14 @@ export default function RootLayout({
       >
         <QueryProvider>
           <Navbar />
-          <main className="pt-4">
-            {children}
-          </main>
+          <main className="pt-4">{children}</main>
+          <Footer />
           <Toaster />
+          <GlobalLoginModal />
         </QueryProvider>
       </body>
+      <GoogleTagManager gtmId={process.env.NEXT_PUBLIC_GTM_ID || ''} />
+      <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID || ''} />
     </html>
   );
 }
-

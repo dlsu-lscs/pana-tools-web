@@ -1,4 +1,4 @@
-import { Application, ApplicationsListResponse } from '../types/app.types';
+import { Application, ApplicationsListResponse, SortByOptions } from '../types/app.types';
 
 interface GetApplicationsParams {
   search?: string;
@@ -6,6 +6,7 @@ interface GetApplicationsParams {
   userId?: string;
   page?: number;
   limit?: number;
+  sortBy?: SortByOptions;
 }
 
 export async function getApplications(params: GetApplicationsParams = {}): Promise<ApplicationsListResponse> {
@@ -15,12 +16,12 @@ export async function getApplications(params: GetApplicationsParams = {}): Promi
   if (params.tags && params.tags.length > 0) {
     params.tags.forEach((tag) => {
       parts.push(`tags=${encodeURIComponent(tag)}`);
-      parts.push(`tags=${encodeURIComponent(tag)}`);
     });
   }
   if (params.userId) parts.push(`userId=${encodeURIComponent(params.userId)}`);
   if (params.page) parts.push(`page=${params.page}`);
   if (params.limit) parts.push(`limit=${params.limit}`);
+  if (params.sortBy) parts.push(`sortBy=${params.sortBy}`);
 
   const base = `${process.env.NEXT_PUBLIC_API_URL}/api/applications`;
   const finalUrl = parts.length ? `${base}?${parts.join('&')}` : base;
@@ -28,6 +29,19 @@ export async function getApplications(params: GetApplicationsParams = {}): Promi
 
   if (!response.ok) {
     throw new Error(`Failed to fetch applications: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function getMyApplications(): Promise<ApplicationsListResponse> {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/applications/me`,
+    { credentials: 'include' },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch my applications: ${response.statusText}`);
   }
 
   return response.json();
@@ -89,4 +103,34 @@ export async function getApplicationBySlug(slug: string): Promise<Application> {
   }
 
   return response.json();
+}
+
+export async function getOwnApplicationBySlug(slug: string): Promise<Application> {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/applications/${encodeURIComponent(slug)}/edit`,
+    { credentials: 'include' },
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch application: ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+export async function claimApplication(id: number, additionalInfo?: string): Promise<void> {
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/applications/${id}/claim`,
+    {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ additionalInfo }),
+    },
+  );
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error((body as { message?: string }).message ?? 'Failed to submit claim request');
+  }
 }

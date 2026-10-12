@@ -1,10 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import {
   getApplications,
+  getMyApplications,
   getApplicationBySlug,
+  getOwnApplicationBySlug,
   getApplicationFavoritesCount,
   updateApplication,
   deleteApplication,
+  claimApplication,
 } from '../services/apps.service';
 import { AppFilters, Application } from '../types/app.types';
 
@@ -13,6 +16,7 @@ export const applicationsQueryKey = (filters: Partial<AppFilters>) => [
   filters.userId ?? '',
   filters.searchQuery ?? '',
   filters.selectedTags ?? [],
+  filters.sortBy ?? 'createdAt',
 ];
 
 export function useApplicationsQuery(filters: Partial<AppFilters> = {}, options?: { enabled?: boolean; page?: number; limit?: number }) {
@@ -25,9 +29,40 @@ export function useApplicationsQuery(filters: Partial<AppFilters> = {}, options?
         search: filters.searchQuery || undefined,
         tags: filters.selectedTags && filters.selectedTags.length > 0 ? filters.selectedTags : undefined,
         userId: filters.userId || undefined,
+        sortBy: filters.sortBy || 'createdAt',
         page,
         limit,
       }),
+    retry: 1,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useInfiniteApplicationsQuery(filters: Partial<AppFilters> = {}, options?: { enabled?: boolean }) {
+  return useInfiniteQuery({
+    queryKey: [...applicationsQueryKey(filters), 'infinite'],
+    queryFn: ({ pageParam }) =>
+      getApplications({
+        search: filters.searchQuery || undefined,
+        tags: filters.selectedTags && filters.selectedTags.length > 0 ? filters.selectedTags : undefined,
+        userId: filters.userId || undefined,
+        sortBy: filters.sortBy || 'createdAt',
+        page: pageParam,
+      }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const { page, totalPages } = lastPage.meta;
+      return page < totalPages ? page + 1 : undefined;
+    },
+    retry: 1,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+export function useMyApplicationsQuery(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ['my-applications'],
+    queryFn: getMyApplications,
     retry: 1,
     enabled: options?.enabled ?? true,
   });
@@ -37,6 +72,14 @@ export function useApplicationBySlugQuery(slug: string) {
   return useQuery({
     queryKey: ['application', slug],
     queryFn: () => getApplicationBySlug(slug),
+    enabled: !!slug,
+  });
+}
+
+export function useOwnApplicationBySlugQuery(slug: string) {
+  return useQuery({
+    queryKey: ['own-application', slug],
+    queryFn: () => getOwnApplicationBySlug(slug),
     enabled: !!slug,
   });
 }
@@ -66,5 +109,12 @@ export function useDeleteApplicationMutation() {
   return useMutation({
     mutationFn: (id: number) => deleteApplication(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['applications'] }),
+  });
+}
+
+export function useClaimApplicationMutation() {
+  return useMutation({
+    mutationFn: ({ id, additionalInfo }: { id: number; additionalInfo?: string }) =>
+      claimApplication(id, additionalInfo),
   });
 }

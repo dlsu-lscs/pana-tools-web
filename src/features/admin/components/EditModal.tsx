@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { useEffect, useState, useRef } from 'react';
 import {
   FiUpload, FiX,
@@ -58,6 +59,8 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
   const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [iconSizeError, setIconSizeError] = useState<string | null>(null);
+  const [previewSizeError, setPreviewSizeError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iconInputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +101,14 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
 
   const addFiles = (incoming: File[]) => {
     const images = incoming.filter((file) => file.type.startsWith('image/'));
-    setNewPreviewFiles((prev) => [...prev, ...images].slice(0, 5));
+    const oversized = images.filter((f) => f.size > 10 * 1024 * 1024);
+    const valid = images.filter((f) => f.size <= 10 * 1024 * 1024);
+    if (oversized.length > 0) {
+      setPreviewSizeError(`${oversized.length} file(s) exceeded 10 MB and were not added.`);
+    } else {
+      setPreviewSizeError(null);
+    }
+    setNewPreviewFiles((prev) => [...prev, ...valid].slice(0, 5));
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -122,8 +132,13 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
   const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      setIconFile(file);
-      setIconUrl('');
+      if (file.size > 5 * 1024 * 1024) {
+        setIconSizeError('Icon must be 5 MB or less.');
+      } else {
+        setIconSizeError(null);
+        setIconFile(file);
+        setIconUrl('');
+      }
     }
     if (iconInputRef.current) iconInputRef.current.value = '';
   };
@@ -145,15 +160,13 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
 
       if (newPreviewFiles.length > 0) {
         const uploaded = await uploadImages(newPreviewFiles);
-        previewImages = previewImages.concat(
-          uploaded.map((result) => `${window.location.origin}/api/image?key=${encodeURIComponent(result.key)}`),
-        );
+        previewImages = previewImages.concat(uploaded.map((result) => result.key));
       }
 
       let icon: string | null | undefined = undefined;
       if (iconFile) {
         const uploaded = await uploadIcon(iconFile);
-        icon = `${window.location.origin}/api/image?key=${encodeURIComponent(uploaded.key)}`;
+        icon = uploaded.key;
       } else if (iconUrl === '') {
         icon = null;
       }
@@ -267,11 +280,13 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
 
               {currentIconPreview ? (
                 <div className="flex items-center justify-center gap-3">
-                  <div className="relative w-14 h-14 shrink-0">
-                    <img
+                  <div className="relative w-14 h-14 shrink-0 rounded-xl overflow-hidden border border-white/10">
+                    <Image
+                      fill
+                      unoptimized
                       src={currentIconPreview}
                       alt="App icon preview"
-                      className="w-14 h-14 object-cover rounded-xl border border-white/10"
+                      className="object-cover"
                     />
                     <button
                       type="button"
@@ -296,6 +311,9 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
                 </>
               )}
             </div>
+            {iconSizeError && (
+              <p className="mt-1 text-xs text-red-400">{iconSizeError}</p>
+            )}
           </div>
 
           {/* Preview Images */}
@@ -319,17 +337,22 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
               <p className="text-sm text-white/40">
                 Drop images here or <span className="text-white/60 font-semibold">click to browse</span>
               </p>
-              <p className="text-xs text-white/25 mt-1">Up to 5 images, max 5 MB each.</p>
+              <p className="text-xs text-white/25 mt-1">Up to 5 images, max 10 MB each.</p>
             </div>
+            {previewSizeError && (
+              <p className="mt-1.5 text-xs text-red-400">{previewSizeError}</p>
+            )}
 
             {(existingPreviewImages.length > 0 || newPreviewUrls.length > 0) && (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {existingPreviewImages.map((preview, index) => (
-                  <div key={`existing-${preview}-${index}`} className="relative overflow-hidden rounded-xl">
-                    <img
+                  <div key={`existing-${preview}-${index}`} className="relative h-20 overflow-hidden rounded-xl border border-white/10">
+                    <Image
+                      fill
+                      unoptimized
                       src={preview}
                       alt={`Existing preview ${index + 1}`}
-                      className="w-full h-20 object-cover rounded-xl border border-white/10"
+                      className="object-cover"
                     />
                     <button
                       type="button"
@@ -342,11 +365,13 @@ export function EditModal({ isOpen, onClose, application, onSave, isSubmitting }
                   </div>
                 ))}
                 {newPreviewUrls.map((preview, index) => (
-                  <div key={`new-${index}`} className="relative overflow-hidden rounded-xl">
-                    <img
+                  <div key={`new-${index}`} className="relative h-20 overflow-hidden rounded-xl border border-white/10">
+                    <Image
+                      fill
+                      unoptimized
                       src={preview}
                       alt={`New preview ${index + 1}`}
-                      className="w-full h-20 object-cover rounded-xl border border-white/10"
+                      className="object-cover"
                     />
                     <button
                       type="button"

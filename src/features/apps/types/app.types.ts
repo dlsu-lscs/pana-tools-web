@@ -1,3 +1,5 @@
+import { SORT_BY_OPTIONS } from "@/lib/sort-constants";
+
 export interface Application {
   id: number;
   title: string;
@@ -11,11 +13,15 @@ export interface Application {
   userId: string;
   userEmail?: string;
   author?: string | null;
-  isApproved: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REMOVED';
+  status: 'PENDING' | 'APPROVED' | 'CHANGES_REQUESTED' | 'REMOVED';
   rejectionReason?: string | null;
+  unclaimed?: boolean;
   createdAt: string;
   updatedAt: string;
   favoritesCount?: number;
+  ratingCount?: number;
+  averageRating?: number | null;
+  viewCount?: number;
 }
 
 export interface ApplicationsMeta {
@@ -35,4 +41,7 @@ export interface AppFilters {
   searchQuery: string;
   selectedTags: string[];
   userId?: string;
+  sortBy?: SortByOptions | '';
 }
+
+export type SortByOptions = (typeof SORT_BY_OPTIONS)[number]['value'];

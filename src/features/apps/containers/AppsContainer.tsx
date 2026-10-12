@@ -1,27 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/atoms/Button';
+import { FilterButton } from '@/components/molecules/FilterButton';
 import { AppCard } from '../components/AppCard';
 import { useAppsContainer } from '@/features/apps/hooks/useAppsContainer';
-import { Pagination } from '@/components/molecules/Pagination';
 import { AppCardSkeleton } from '@/components/molecules/AppCardSkeleton';
 import { motion, AnimatePresence } from 'motion/react';
 import { authClient } from '@/lib/auth-client';
 import { UserProfileCard } from '../components/UserProfileCard';
+import { GuestPanel } from '../components/GuestPanel';
 import { FavoritesPreviewContainer } from '@/features/favorites/containers/FavoritesPreviewContainer';
 import ProfileContainer from './ProfileContainer';
+import { SortByOptions } from '../types/app.types';
+import { SORT_BY_OPTIONS } from '@/lib/sort-constants';
+import { HiBars3BottomLeft } from 'react-icons/hi2';
 
 export default function AppsContainer() {
   const [hasMounted, setHasMounted] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const { data: session } = authClient.useSession();
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   const {
     apps,
-    meta,
-    page,
-    setPage,
     filters,
     uniqueTags,
     toggleTag,
@@ -29,11 +31,32 @@ export default function AppsContainer() {
     hasActiveFilters,
     isLoading,
     isError,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    setSortBy,
   } = useAppsContainer();
 
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  const handleObserver = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage],
+  );
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(handleObserver, { rootMargin: '200px' });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [handleObserver]);
 
   if (!hasMounted) {
     return (
@@ -46,35 +69,60 @@ export default function AppsContainer() {
   return (
     <div className="min-h-screen">
       {/* User profile + favorites panel */}
-      {session?.user && (
-        <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-3">
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-3">
+        {session?.user ? (
           <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
             <UserProfileCard name={session.user.name} image={session.user.image} email={session.user.email} onClick={() => setIsProfileOpen(true)} />
             <FavoritesPreviewContainer userId={session.user.id} />
           </div>
-        </div>
-      )}
+        ) : (
+          <GuestPanel />
+        )}
+      </div>
 
       {/* Filter / search panel — glass card */}
       <div className="max-w-7xl mx-auto px-5 sm:px-8 pt-8">
-        <div className="bg-black/60 backdrop-blur-lg border border-white/10 shadow-[var(--shadow-glass)] rounded-xl px-5 py-4">
-          <div className="flex items-start gap-3">
+        <div className="bg-black/60 backdrop-blur-lg border border-white/10 shadow-[var(--shadow-glass)] rounded-xl px-5 py-4 flex flex-col gap-4">
+          
+          {/* Sort row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="shrink-0 flex items-center gap-2">
+              <HiBars3BottomLeft className="w-4 h-4 text-white/50" />
+              <p className="text-xs font-semibold text-white/40 uppercase tracking-wide leading-none">Sort</p>
+            </div>
+            <div className="flex items-center gap-2 text-xs flex-wrap">
+              {SORT_BY_OPTIONS.map((option) => (
+                <FilterButton
+                  key={option.value}
+                  label={option.label}
+                  isActive={filters.sortBy === option.value || (!filters.sortBy && option.value === 'createdAt')}
+                  onClick={() => setSortBy(option.value as SortByOptions)}
+                  className="px-3 py-1 rounded-full text-xs font-medium"
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="h-px bg-white/10 -mx-5" />
+
+          {/* Filter row */}
+          <div className="flex items-start gap-3 flex-wrap">
             <div className="shrink-0 pt-0.5">
               <p className="text-xs font-semibold text-white/40 uppercase tracking-wide leading-none">Filter</p>
               <p className="text-xs text-white/25 mt-0.5 whitespace-nowrap">by tag</p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+
               {uniqueTags.map((tag) => {
                 const isActive = filters.selectedTags.includes(tag);
                 return (
                   <motion.button
                     key={tag}
                     onClick={() => toggleTag(tag)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      isActive
-                        ? 'bg-white text-black'
-                        : 'bg-white/8 text-white/50 border border-white/10 hover:bg-white/12 hover:text-white/80'
-                    }`}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${isActive
+                      ? 'bg-white text-black'
+                      : 'bg-white/8 text-white/50 border border-white/10 hover:bg-white/12 hover:text-white/80'
+                      }`}
                     whileHover={{ scale: 1.08 }}
                     whileTap={{ scale: 0.94 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 20 }}
@@ -111,11 +159,18 @@ export default function AppsContainer() {
             </p>
           </div>
         ) : apps.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {apps.map((app) => (
-              <AppCard key={app.id} app={app} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {apps.map((app) => (
+                <AppCard key={app.id} app={app} />
+              ))}
+              {isFetchingNextPage &&
+                Array.from({ length: 3 }).map((_, i) => (
+                  <AppCardSkeleton key={`next-${i}`} />
+                ))}
+            </div>
+            <div ref={sentinelRef} className="h-1" />
+          </>
         ) : (
           <div className="text-center py-20 flex flex-col items-center gap-2">
             <svg
@@ -139,14 +194,6 @@ export default function AppsContainer() {
               Clear all filters
             </Button>
           </div>
-        )}
-
-        {meta && (
-          <Pagination
-            page={page}
-            totalPages={meta.totalPages}
-            onPageChange={setPage}
-          />
         )}
       </div>
 

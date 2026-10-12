@@ -1,29 +1,36 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { SORT_VALUES } from '@/lib/sort-constants';
 import { useUIStore } from '@/store/uiStore';
-import { useApplicationsQuery } from '../queries/apps.queries';
-import { Application } from '../types/app.types';
+import { useQueryString } from '@/hooks/useQueryString';
+import { useInfiniteApplicationsQuery } from '../queries/apps.queries';
+import { Application, SortByOptions } from '../types/app.types';
 
 export function useAppsContainer() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useQueryString<SortByOptions>('sortBy', 'createdAt', SORT_VALUES);
 
   const { searchQuery } = useUIStore();
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const query = useApplicationsQuery({ searchQuery: debouncedSearch, selectedTags }, { page });
+  const query = useInfiniteApplicationsQuery({
+    searchQuery: debouncedSearch,
+    selectedTags,
+    sortBy,
+  });
 
-  const apps = useMemo(() => query.data?.data ?? [], [query.data]);
-  const meta = query.data?.meta;
+  const apps = useMemo(
+    () => query.data?.pages.flatMap((p) => p.data) ?? [],
+    [query.data],
+  );
 
   const uniqueTags = useMemo(() => {
     const tags = new Set<string>();
@@ -37,12 +44,10 @@ export function useAppsContainer() {
     setSelectedTags((prev) =>
       prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
     );
-    setPage(1);
   }, []);
 
   const clearFilters = useCallback(() => {
     setSelectedTags([]);
-    setPage(1);
   }, []);
 
   const handleAppClick = useCallback((app: Application) => {
@@ -51,12 +56,10 @@ export function useAppsContainer() {
     }
   }, []);
 
+
   return {
     apps,
-    meta,
-    page,
-    setPage,
-    filters: { searchQuery, selectedTags },
+    filters: { searchQuery, selectedTags, sortBy },
     uniqueTags,
     toggleTag,
     clearFilters,
@@ -64,5 +67,9 @@ export function useAppsContainer() {
     hasActiveFilters,
     isLoading: query.isLoading,
     isError: query.isError,
+    isFetchingNextPage: query.isFetchingNextPage,
+    hasNextPage: query.hasNextPage,
+    fetchNextPage: query.fetchNextPage,
+    setSortBy,
   };
 }

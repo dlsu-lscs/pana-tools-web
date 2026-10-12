@@ -6,12 +6,20 @@ export async function uploadImages(files: File[]): Promise<UploadResult[]> {
   const results: UploadResult[] = [];
 
   for (const file of files) {
-    const params = new URLSearchParams({ fileName: file.name, contentType: file.type });
-    const presignResponse = await fetch(`/api/upload?${params}`);
+    const params = new URLSearchParams({
+      contentType: file.type,
+      type: 'preview',
+    });
+    const presignResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/images/uploads/presigned?${params}`,
+      { credentials: 'include' },
+    );
 
     if (!presignResponse.ok) {
       const err = await presignResponse.json().catch(() => ({}));
-      throw new Error(err?.error ?? 'Failed to get upload URL. Please try again.');
+      throw new Error(
+        err?.error ?? 'Failed to get upload URL. Please try again.',
+      );
     }
 
     const { presignedUrl, key } = await presignResponse.json();
@@ -20,6 +28,7 @@ export async function uploadImages(files: File[]): Promise<UploadResult[]> {
       method: 'PUT',
       headers: { 'Content-Type': file.type },
       body: file,
+      credentials: 'omit',
     });
 
     if (!uploadResponse.ok) {
@@ -33,12 +42,20 @@ export async function uploadImages(files: File[]): Promise<UploadResult[]> {
 }
 
 export async function uploadIcon(file: File): Promise<UploadResult> {
-  const params = new URLSearchParams({ fileName: file.name, contentType: file.type, type: 'icon' });
-  const presignResponse = await fetch(`/api/upload?${params}`);
+  const params = new URLSearchParams({
+    contentType: file.type,
+    type: 'icon',
+  });
+  const presignResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/images/uploads/presigned?${params}`,
+    { credentials: 'include' },
+  );
 
   if (!presignResponse.ok) {
     const err = await presignResponse.json().catch(() => ({}));
-    throw new Error(err?.error ?? 'Failed to get upload URL. Please try again.');
+    throw new Error(
+      err?.error ?? 'Failed to get upload URL. Please try again.',
+    );
   }
 
   const { presignedUrl, key } = await presignResponse.json();
@@ -47,6 +64,7 @@ export async function uploadIcon(file: File): Promise<UploadResult> {
     method: 'PUT',
     headers: { 'Content-Type': file.type },
     body: file,
+    credentials: 'omit',
   });
 
   if (!uploadResponse.ok) {

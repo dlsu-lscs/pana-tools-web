@@ -9,9 +9,10 @@ interface FavoritesContainerProps {
   userId: string;
 }
 
+
 export function FavoritesContainer({ userId }: FavoritesContainerProps) {
   const { data: favoritesData, isLoading: favLoading } = useUserFavoritesQuery(userId);
-  const { data: appsData, isLoading: appsLoading } = useApplicationsQuery();
+  const { data: appsData, isLoading: appsLoading } = useApplicationsQuery({}, { limit: 100 });
 
   const isLoading = favLoading || appsLoading;
 
@@ -42,9 +43,9 @@ export function FavoritesContainer({ userId }: FavoritesContainerProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {favoriteApps.map((app) => (
-        <AppCard key={app.id} app={app} />
+        <AppCard key={app.id} app={app} variant="compact" showTags={false} />
       ))}
     </div>
   );

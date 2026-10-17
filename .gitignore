@@ -46,3 +46,7 @@ skills-lock.json
 
 #ide
 .vscode
+
+# pnpm lock
+pnpm-lock.yaml
+

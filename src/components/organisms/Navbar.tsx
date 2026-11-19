@@ -74,6 +74,9 @@ export function Navbar() {
 
           {/* Right: nav links + auth */}
           <div className="hidden md:flex items-center gap-5">
+            <Link href="/feedback" className="text-sm font-medium text-white/50 hover:text-white/90 transition-colors">
+              Feedback
+            </Link>
             <Link href="/" className="text-sm font-medium text-white/50 hover:text-white/90 transition-colors">
               Apps
             </Link>
@@ -190,6 +193,9 @@ export function Navbar() {
             />
           </div>
 
+          <Link href="/feedback" className="text-sm font-medium text-white/60 hover:text-white/90 transition-colors" onClick={() => setMobileMenuOpen(false)}>
+            Feedback
+          </Link>
           <Link href="/" className="text-sm font-medium text-white/60 hover:text-white/90 transition-colors" onClick={() => setMobileMenuOpen(false)}>
             Apps
           </Link>

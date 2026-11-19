@@ -3,6 +3,7 @@ import type {
   FeedbackItem,
   FeedbackListResponse,
   SubmitFeedbackPayload,
+  UpdateFeedbackPayload,
 } from '../types/feedback.types';
 
 const getBaseUrl = () => `${process.env.NEXT_PUBLIC_API_URL}/api/feedback`;
@@ -59,6 +60,7 @@ export async function getAdminFeedback(
   if (params.page) query.set('page', String(params.page));
   if (params.limit) query.set('limit', String(params.limit));
   if (params.category) query.set('category', params.category);
+  if (params.status) query.set('status', params.status);
   if (params.search) query.set('search', params.search);
   if (params.userId) query.set('userId', params.userId);
   if (params.sortBy) query.set('sortBy', params.sortBy);
@@ -76,6 +78,27 @@ export async function getAdminFeedback(
 
   if (!response.ok) {
     throw await parseErrorResponse(response, 'Failed to fetch feedback submissions.');
+  }
+
+  return response.json();
+}
+
+export async function updateFeedback(
+  id: string,
+  payload: UpdateFeedbackPayload,
+): Promise<FeedbackItem> {
+  const response = await fetch(
+    `${getBaseUrl()}/admin/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    throw await parseErrorResponse(response, 'Failed to update feedback.');
   }
 
   return response.json();

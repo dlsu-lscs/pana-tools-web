@@ -7,6 +7,7 @@ export interface FeedbackItem {
   userId: string | null;
   email?: string | null;
   category: FeedbackCategory;
+  status: FeedbackTriageStatus;
   message: string;
   createdAt: string;
   updatedAt?: string;
@@ -22,6 +23,7 @@ export interface AdminFeedbackQueryParams {
   page?: number;
   limit?: number;
   category?: FeedbackCategory;
+  status?: FeedbackTriageStatus;
   search?: string;
   userId?: string;
   sortBy?: 'createdAt' | 'category' | 'email';
@@ -33,6 +35,12 @@ export interface FeedbackListResponse {
   total: number;
   page: number;
   limit: number;
+  statusCounts: Record<FeedbackTriageStatus, number>;
+}
+
+export interface UpdateFeedbackPayload {
+  status?: FeedbackTriageStatus;
+  category?: FeedbackCategory;
 }
 
 export const FEEDBACK_CATEGORY_OPTIONS: ReadonlyArray<{

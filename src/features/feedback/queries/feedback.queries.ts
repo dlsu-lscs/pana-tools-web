@@ -3,10 +3,12 @@ import {
   deleteFeedback,
   getAdminFeedback,
   submitFeedback,
+  updateFeedback,
 } from '../services/feedback.service';
 import type {
   AdminFeedbackQueryParams,
   SubmitFeedbackPayload,
+  UpdateFeedbackPayload,
 } from '../types/feedback.types';
 
 export const ADMIN_FEEDBACK_KEY = ['admin', 'feedback'] as const;
@@ -24,6 +26,18 @@ export function useSubmitFeedback() {
 
   return useMutation({
     mutationFn: (payload: SubmitFeedbackPayload) => submitFeedback(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_FEEDBACK_KEY });
+    },
+  });
+}
+
+export function useUpdateFeedback() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateFeedbackPayload }) =>
+      updateFeedback(id, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_FEEDBACK_KEY });
     },

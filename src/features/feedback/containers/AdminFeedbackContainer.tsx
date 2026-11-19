@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useToastStore } from '@/store/toast.store';
 import {
   useAdminFeedback,
   useDeleteFeedback,
+  useUpdateFeedback,
 } from '../queries/feedback.queries';
 import { AdminFeedbackTable } from '../components/AdminFeedbackTable';
 import { FeedbackDetailsModal } from '../components/FeedbackDetailsModal';
@@ -13,14 +14,14 @@ import type {
   FeedbackCategory,
   FeedbackItem,
   FeedbackTriageStatus,
+  UpdateFeedbackPayload,
 } from '../types/feedback.types';
 
-const STORAGE_KEY = 'pana-admin-feedback-triage-v1';
-
-interface TriageMap {
-  status: Record<string, FeedbackTriageStatus>;
-  category: Record<string, FeedbackCategory>;
-}
+const EMPTY_COUNTS: Record<FeedbackTriageStatus, number> = {
+  unresolved: 0,
+  pending: 0,
+  resolved: 0,
+};
 
 export function AdminFeedbackContainer() {
   const [page, setPage] = useState(1);
@@ -32,81 +33,61 @@ export function AdminFeedbackContainer() {
     null,
   );
   const [deleteTarget, setDeleteTarget] = useState<FeedbackItem | null>(null);
-  const [triage, setTriage] = useState<TriageMap>({ status: {}, category: {} });
 
   const { data, isLoading, isError } = useAdminFeedback({
     page,
     limit,
+    status: selectedStatusFilter === 'all' ? undefined : selectedStatusFilter,
     sortBy: 'createdAt',
     sortOrder: 'desc',
   });
 
+  const updateMutation = useUpdateFeedback();
   const deleteMutation = useDeleteFeedback();
   const addToast = useToastStore((s) => s.addToast);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setTriage(JSON.parse(saved));
-      }
-    } catch {
-      // ignore storage errors
-    }
-  }, []);
-
-  const persistTriage = (next: TriageMap) => {
-    setTriage(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // ignore storage errors
-    }
-  };
-
-  const getStatus = (id: string): FeedbackTriageStatus =>
-    triage.status[id] ?? 'unresolved';
-
-  const getCategory = (item: FeedbackItem): FeedbackCategory =>
-    triage.category[item.id] ?? item.category;
-
-  const handleStatusChange = (id: string, status: FeedbackTriageStatus) => {
-    persistTriage({
-      ...triage,
-      status: { ...triage.status, [id]: status },
-    });
-    addToast(`Status updated to ${status}`, 'success');
-  };
-
-  const handleCategoryChange = (id: string, category: FeedbackCategory) => {
-    persistTriage({
-      ...triage,
-      category: { ...triage.category, [id]: category },
-    });
-    addToast('Feedback type updated', 'success');
-  };
-
-  const allItems = data?.data ?? [];
+  const items = data?.data ?? [];
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
 
-  const statusCounts = useMemo(() => {
-    const counts: Record<FeedbackTriageStatus, number> = {
-      unresolved: 0,
-      pending: 0,
-      resolved: 0,
-    };
-    for (const item of allItems) {
-      counts[getStatus(item.id)] += 1;
-    }
-    return counts;
-  }, [allItems, triage.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Step back if the current page no longer exists (e.g. after deleting its last item).
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
-  const filteredItems = useMemo(() => {
-    if (selectedStatusFilter === 'all') return allItems;
-    return allItems.filter(
-      (item) => getStatus(item.id) === selectedStatusFilter,
+  const handleStatusFilterChange = (status: FeedbackTriageStatus | 'all') => {
+    setSelectedStatusFilter(status);
+    setPage(1);
+  };
+
+  const applyUpdate = (
+    id: string,
+    payload: UpdateFeedbackPayload,
+    successMessage: string,
+  ) => {
+    updateMutation.mutate(
+      { id, payload },
+      {
+        onSuccess: (updated) => {
+          setActiveFeedback((current) =>
+            current?.id === updated.id ? updated : current,
+          );
+          addToast(successMessage, 'success');
+        },
+        onError: (err) => {
+          addToast(
+            err instanceof Error ? err.message : 'Failed to update feedback',
+            'error',
+          );
+        },
+      },
     );
-  }, [allItems, selectedStatusFilter, triage.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  };
+
+  const handleStatusChange = (id: string, status: FeedbackTriageStatus) =>
+    applyUpdate(id, { status }, `Status updated to ${status}`);
+
+  const handleCategoryChange = (id: string, category: FeedbackCategory) =>
+    applyUpdate(id, { category }, 'Feedback type updated');
 
   const handleConfirmDelete = () => {
     if (!deleteTarget) return;
@@ -130,27 +111,25 @@ export function AdminFeedbackContainer() {
   return (
     <>
       <AdminFeedbackTable
-        items={filteredItems}
+        items={items}
         isLoading={isLoading}
         isError={isError}
         page={page}
         totalPages={totalPages}
         onPageChange={setPage}
         selectedStatusFilter={selectedStatusFilter}
-        onStatusFilterChange={setSelectedStatusFilter}
-        statusCounts={statusCounts}
-        getStatus={getStatus}
-        getCategory={getCategory}
+        onStatusFilterChange={handleStatusFilterChange}
+        statusCounts={data?.statusCounts ?? EMPTY_COUNTS}
+        getStatus={(id) => items.find((i) => i.id === id)?.status ?? 'unresolved'}
+        getCategory={(item) => item.category}
         onOpenDetails={setActiveFeedback}
         onRequestDelete={setDeleteTarget}
       />
 
       <FeedbackDetailsModal
         feedback={activeFeedback}
-        status={activeFeedback ? getStatus(activeFeedback.id) : 'unresolved'}
-        categoryOverride={
-          activeFeedback ? getCategory(activeFeedback) : undefined
-        }
+        status={activeFeedback?.status ?? 'unresolved'}
+        categoryOverride={activeFeedback?.category}
         onClose={() => setActiveFeedback(null)}
         onStatusChange={handleStatusChange}
         onCategoryChange={handleCategoryChange}

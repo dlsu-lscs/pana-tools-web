@@ -76,7 +76,7 @@ export function AdminDashboardContainer() {
       label: 'Feedback Submissions',
       section: 'Content',
       icon: <FiFileText />,
-      badge: feedbackMeta?.total,
+      badge: feedbackMeta?.statusCounts.unresolved,
       render: () => <AdminFeedbackContainer />,
     },
     {

@@ -1,6 +1,6 @@
 import { Application } from '@/features/apps/types/app.types';
 
-export type AdminTab = 'apps' | 'members' | 'claims';
+export type AdminTab = 'apps' | 'members' | 'claims' | 'feedback';
 
 export type AdminApplication = Application & {
   userId: string;

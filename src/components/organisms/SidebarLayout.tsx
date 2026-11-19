@@ -34,7 +34,7 @@ export function SidebarLayout<T extends string = string>({
   const allItems = sections.flatMap((s) => s.items);
 
   return (
-    <div className="flex flex-col h-full sm:flex-row">
+    <div className="flex flex-col min-h-[calc(100vh-5rem)] h-full sm:flex-row sm:items-stretch">
       {/* Mobile top navbar */}
       <div className="sm:hidden shrink-0 flex flex-col border-b border-white/8">
         {sidebarHeader && <div className="px-4 py-3">{sidebarHeader}</div>}
@@ -66,7 +66,9 @@ export function SidebarLayout<T extends string = string>({
       </div>
 
       {/* Desktop sidebar */}
-      <nav className={`sidebar-nav hidden sm:flex ${sidebarWidth} shrink-0 flex-col py-6 px-3 overflow-y-auto`}>
+      <nav
+        className={`sidebar-nav hidden sm:flex ${sidebarWidth} shrink-0 flex-col self-stretch py-6 px-3 overflow-y-auto`}
+      >
         {sidebarHeader && <div className="mb-4">{sidebarHeader}</div>}
         {title && (
           <p className="px-3 mb-5 text-sm font-semibold text-white/60 font-display">{title}</p>
@@ -84,7 +86,7 @@ export function SidebarLayout<T extends string = string>({
                   <li key={item.id as string}>
                     <button
                       onClick={() => onSelect(item.id)}
-                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-left transition-colors cursor-pointer ${
                         activeId === item.id
                           ? 'bg-white/10 text-white'
                           : 'text-white/50 hover:text-white/80 hover:bg-white/[0.05]'
@@ -95,9 +97,9 @@ export function SidebarLayout<T extends string = string>({
                           {item.icon}
                         </span>
                       )}
-                      {item.label}
+                      <span className="truncate whitespace-nowrap">{item.label}</span>
                       {item.badge != null && item.badge > 0 && (
-                        <span className="ml-auto text-[10px] font-semibold bg-white/15 text-white/60 rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">
+                        <span className="ml-auto shrink-0 text-[10px] font-semibold bg-white/15 text-white/60 rounded-full px-1.5 py-0.5 min-w-[18px] text-center leading-none">
                           {item.badge > 99 ? '99+' : item.badge}
                         </span>
                       )}

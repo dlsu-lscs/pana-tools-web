@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { SORT_VALUES } from '@/lib/sort-constants';
 import { useUIStore } from '@/store/uiStore';
+import { useQueryString } from '@/hooks/useQueryString';
 import { useInfiniteApplicationsQuery } from '../queries/apps.queries';
-import { Application } from '../types/app.types';
+import { Application, SortByOptions } from '../types/app.types';
 
 export function useAppsContainer() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [sortBy, setSortBy] = useQueryString<SortByOptions>('sortBy', 'createdAt', SORT_VALUES);
 
   const { searchQuery } = useUIStore();
 
@@ -18,7 +21,11 @@ export function useAppsContainer() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const query = useInfiniteApplicationsQuery({ searchQuery: debouncedSearch, selectedTags });
+  const query = useInfiniteApplicationsQuery({
+    searchQuery: debouncedSearch,
+    selectedTags,
+    sortBy,
+  });
 
   const apps = useMemo(
     () => query.data?.pages.flatMap((p) => p.data) ?? [],
@@ -49,9 +56,10 @@ export function useAppsContainer() {
     }
   }, []);
 
+
   return {
     apps,
-    filters: { searchQuery, selectedTags },
+    filters: { searchQuery, selectedTags, sortBy },
     uniqueTags,
     toggleTag,
     clearFilters,
@@ -62,5 +70,6 @@ export function useAppsContainer() {
     isFetchingNextPage: query.isFetchingNextPage,
     hasNextPage: query.hasNextPage,
     fetchNextPage: query.fetchNextPage,
+    setSortBy,
   };
 }
